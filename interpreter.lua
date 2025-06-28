@@ -1,3 +1,4 @@
+require "switch"
 Tokenizer = {}
 Parser = {}
 Evaluator = {}
@@ -43,20 +44,19 @@ KEYW = {
 ['GOSUB']={'GOSUB'},
 ['FOR']={'FOR'},
 ['NEXT']={'NEXT'},
-['IFSIG']={'IFSIG'},
-['WAITFOR']={'WAITFOR'},
+['INPUT']={'INPUT'},
+['POINT']={'POINT'},
 -------------ROBOT--------------
 ['MOVE']={'MOVE'},
-['MOVEX']={'MOVEX'},
 ['MOVEP']={'MOVEP'},
-['MOVEXP']={'MOVEXP'},
-['POINT']={'POINT'},
 ['OPEN']={'OPEN'},
 ['CLOSE']={'CLOSE'},
 ['VEL']={'VEL'},
 ['HOME']={'HOME'},
 ['OFFLINE']={'OFFLINE'},
 ['ONLINE']={'ONLINE'},
+['IFSIG']={'IFSIG'},
+['WAITFOR']={'WAITFOR'},
 ['OUTSIG']={'OUTSIG'}}
 
 local push = function(table,item) table[#table+1] = item end  
@@ -224,9 +224,9 @@ function Parser:parse(EOF)
     local function value_list()
         local list,point = {},nil
         while not self:match('NL') and not self:match(EOF) do
-            point = self:expr()
-            if self:match('SEP') then self:advance() end
-            push(list,point)
+            if self:match('SEP') then self:advance()
+            else point = self:expr(); push(list,point[2])
+            end
         end
         return list
     end
@@ -255,7 +255,7 @@ function Parser:parse(EOF)
             self:assert(self:match('ID'),CUSTOM,"Argument is not a variable")
             local point = self:value()
             self:advance()
-            Symbols.points[point] = value_list()           
+            Symbols.points[point] = value_list()          
             self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
         elseif self:match('VEL') then self:advance()
             local vel = {self:value(),nil}; self:advance()
@@ -306,12 +306,14 @@ function Parser:parse(EOF)
             self:assert(self:match('ID'),UNMATCH,{'Identifier',self:current()})
             local id = self:value()
             self:assert(isvalid(id),CUSTOM,"Expected Identifier from 'A' to 'Z'")
-            self:advance()
-            self:assert(self:match('EQ'),UNMATCH,{'=',self:current()}); self:advance()
             if not Symbols.globals[id] then
                 Symbols.globals[id] = {}
             end
+            self:advance()
+            if op == "SETI" then
+            self:assert(self:match('EQ'),UNMATCH,{'=',self:current()}); self:advance()
             push(self.ops,{op,id,self:expr()})
+            end
             self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
         elseif self:match('GOSUB') then self:advance()
             self:assert(self:match('NUM'),CUSTOM,"GOSUB Argument must be a number ")
@@ -345,7 +347,21 @@ function Parser:parse(EOF)
             self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
         elseif self:match('REM') then 
             while not self:match('NL') and not self:match(EOF) do self:advance() end
-        else self:assert(false,CUSTOM,"Unknown token "..self:current()) 
+        elseif self:match('INPUT') then self:advance()
+            local op = {'INPUT',nil,nil}
+            if self:match('STR') then 
+                op[2] = self:expr();
+                self:assert(self:match('SEP'),UNMATCH,{',',self:current()}); self:advance()
+            else op[2] = {'STR','?'} end
+            self:assert(self:match('ID'),UNMATCH,{'Identifier',self:current()})
+            local id = self:value()
+            self:assert(isvalid(id),CUSTOM,"Expected Identifier from 'A' to 'Z'"); self:advance()
+            if not Symbols.globals[id] then
+                Symbols.globals[id] = {}
+            end
+            op[3] = id
+            push(self.ops,op)
+        else self:assert(false,CUSTOM,"Unknown token "..self:value()) 
         end
     end 
     return self.ops
@@ -368,7 +384,7 @@ end
 
 function Interpreter:new(op)
     Interpreter.__index = Interpreter
-    return setmetatable({ops = op},Interpreter)
+    return setmetatable({ops = op, connected = false, port = nil},Interpreter)
 end
 
 function Evaluator:new()
@@ -405,8 +421,26 @@ function Evaluator:eval(expr)
     return eval(expr)
 end
 
+--function Evaluator:eval(expr)
+--    local eval = {}
+--    eval['NUM'] = function(expr)
+--            return expr[2]
+--        end
+--    eval['STR'] = function(expr)
+--            return expr[2]
+--        end
+--    eval['ADD'] = function(expr)
+--            return eval[expr[2][1][1]](expr[2][1]) + eval[expr[2][2][1]](expr[2][2])
+--        end
+--    eval['SUB'] = function(expr)
+--            return eval[expr[2][1][1]](expr[2][1]) - eval[expr[2][2][1]](expr[2][2])
+--        end
+--    return eval[expr[1]](expr)
+--end
+
 function Interpreter:run()
     local eval = Evaluator:new()
+    local emit = Emitter:new()
     local idx = 1
     local count = 1
     local advance = function() idx = idx + 1 end
@@ -432,7 +466,7 @@ function Interpreter:run()
         elseif cmd[1] == 'LOCAL' then
             local sub = Symbols.subs
             push(sub[#sub],cmd[2])
-            push(Symbols.globals[cmd[2]],{'NUM',eval:eval(cmd[3])})
+            --push(Symbols.globals[cmd[2]],{'NUM',eval:eval(cmd[3])})
         elseif cmd[1] == 'GOSUB' then
             push(Symbols.subs,{cmd[2],idx})
             idx = Symbols.labels[cmd[2]]
@@ -452,11 +486,66 @@ function Interpreter:run()
             var[#var] = {'NUM',eval:eval(var[#var])+1}
             idx = cmd[3]
         elseif cmd[1] == 'LABEL' then
+        elseif cmd[1] == 'INPUT' then
+            io.write(cmd[2][2])
+            v = io.read()
+            local var = Symbols.globals[cmd[3]]
+            if not var then push(Symbols.globals[cmd[3]],{'NUM',v})
+            else var[#var] = {'NUM',v}
+            end
+        ------------------------------------------------
+        elseif cmd[1] == "MOVEP"
+            or cmd[1] == "OPEN"
+            or cmd[1] == "CLOSE"
+            or cmd[1] == "HOME"
+            or cmd[1] == "HARDHOME"
+            or cmd[1] == "VEL"
+            or cmd[1] == "OUTSIG" then
+            emit:exec(cmd)
         else
             assert(false,cmd[1] ..' Not implemented')
         end
         advance()
     end
+end
+
+Emitter = {}
+
+function Emitter:new()
+    Emitter.__index = Emitter
+    return setmetatable({},Emitter)
+end
+
+function Emitter:exec(inst)
+    local eval = Evaluator:new()
+    local function movep(args)
+        local point = Symbols.points[args[2]]
+        print("Movendo ",args[2],eval:eval(point[2]))
+    end
+    local function open()
+    end
+    local function close()
+    end
+    local function home(args)
+    end
+    local function hardhome(args)
+    end
+    local function vel(args)
+        print("Vel",eval(args[2]))
+    end
+    local function outsig(args)
+    end
+    local function get_answer(args)
+    end
+    switch(inst[1])
+        .case('MOVEP',movep)
+        .case('OPEN',open)
+        .case('CLOSE',close)
+        .case('HARDHOME',hardhome)
+        .case('HOME',softhome)
+        .case('VEL',vel)
+        .case('OUTSIG',outsig)
+        .exec(inst)
 end
 
 function main()
