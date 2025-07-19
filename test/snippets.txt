@@ -1,0 +1,182 @@
+seti a = 10
+type a
+type 2 * (a + 3)
+seti a = 5
+type 2 * (a + 3)
+seti a = a + 10
+type a
+
+--------------------------------------------
+
+seti a = 10
+seti b = 20
+seti c = a + b * (6/2)
+type c
+move 10,10,-10,10,10
+move a,b,c,0,0
+2
+pause 2
+home
+seti c = 50
+type c
+goto 2
+type "Strange"
+
+--------------------------------------------
+
+type 100
+seti a = 10
+if a = 6 then type "Igual" 
+
+--------------------------------------------
+
+seti a = 0
+2
+if a = 4 then goto 3
+seti a = a + 1
+type "in"
+goto 2
+3
+type "OUT"
+
+--------------------------------------------
+
+seti g = 10 
+type "main"
+gosub 2
+type "after"
+end
+2
+type "sub 2"
+3
+if g = 15 then goto 4
+seti g = g + 1
+type g
+goto 3
+4
+return
+
+--------------------------------------------
+
+seti a = 10
+gosub 2
+type a
+end
+2
+local a = 20
+type a
+return
+
+--------------------------------------------
+
+type "main"
+gosub 2
+end
+2
+gosub 3
+type "sub 2"
+return
+3
+gosub 4
+type "sub 3"
+return
+4
+type "sub 4"
+return
+
+--------------------------------------------
+
+seti a = 2
+gosub 2
+type a
+end
+2
+local a = 5
+seti a = a + 4
+gosub 3
+seti b = 3
+type a
+type b
+return
+3
+local a = 7
+local b = 8
+type a
+type b
+return
+
+--------------------------------------------
+
+for a = 1 to 5
+
+    type a
+    gosub 2
+    type "inside"
+
+next
+end
+2
+type "sub 2"
+local a = 10
+type a
+return
+
+--------------------------------------------
+
+TYPE "EXEMPLOS DE SAÍDA  ";
+FOR C = 0 TO 2
+TYPE " ESTE É O NÚMERO DE LOOP ";
+TYPE C
+FOR B = 1 TO 10
+type " ";
+TYPE B;
+NEXT
+NEXT
+END
+
+--------------------------------------------
+
+seti a = 5
+for a = 1 to 10
+type a;
+type " ";
+next
+type ""
+type a
+end
+
+--------------------------------------------
+
+seti a = 5
+gosub 2
+type a
+end
+2
+for a = 1 to 10
+type a;
+type " ";
+next
+type ""
+return
+
+--------------------------------------------
+
+type "main"
+seti a = 10
+gosub 2
+type a
+end
+2
+gosub 3
+rem type "sub 2"
+local a = 4
+seti a = a + 1
+type a
+return
+3
+gosub 4
+rem type "sub 3"
+return
+4
+rem type "sub 4"
+return
