@@ -117,9 +117,9 @@ The Evaluator reduces AST node expressions to a final value, being integers or s
 { ADD,{IDENT,A},{NUM,3}} -> { NUM,48 }
 ````
 
-## Emmiter
+### Emmiter
 
-The Emitter receives AST nodes with robot specific commands, and outputs the required ASCII commands to comlete the operation. It also controls the timming between read/write operations and controls robot moves by looking at its status words. 
+The Emitter receives AST nodes with robot specific commands, and outputs the required ASCII commands to complete the operation. It also controls the timming between read/write operations and controls robot moves by looking at its status words. 
 
 As an example, for moving from point P to P1 and back to P, it move to a point and will wait until all motors stopped and check if the encoders are in the final position to issue the next move. 
 
