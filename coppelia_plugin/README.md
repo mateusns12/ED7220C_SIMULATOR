@@ -129,3 +129,11 @@ If the user does not close the port, on C++ side, if Coppelia terminates normall
 [OneCore]:https://github.com/mateusns12/ED7220C_SIMULATOR/blob/master/libraries/OneCore.Lib
 
 [libraries]:https://github.com/mateusns12/ED7220C_SIMULATOR/tree/master/libraries
+
+[lua]:https://github.com/mateusns12/ED7220C_SIMULATOR/tree/master/coppelia_plugin/lua
+
+[cmake]:https://github.com/mateusns12/ED7220C_SIMULATOR/tree/master/coppelia_plugin/CMakeLists.txt
+
+[setup]:https://github.com/mateusns12/ED7220C_SIMULATOR/tree/master/coppelia_plugin/setup.ps1
+
+[sourceCode]:https://github.com/mateusns12/ED7220C_SIMULATOR/tree/master/coppelia_plugin/sourceCode
