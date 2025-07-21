@@ -1,6 +1,7 @@
 $SourceDir = $PSScriptRoot
 $BuildDir = $SourceDir += "/serial/build"
 $Generator = "NMake Makefiles"
+$BuildTool = "nmake"
 
 if (-not (Test-Path $BuildDir)) {
     mkdir $BuildDir
@@ -8,6 +9,6 @@ if (-not (Test-Path $BuildDir)) {
 
 cd serial/build
 cmake .. -G $Generator
-nmake
+iex $BuildTool
 cd ../..
 cp serial/build/libserial.dll libserial.dll
