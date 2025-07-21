@@ -87,7 +87,8 @@ This method opens the port, returning false if failed. The error is shown in Cop
 SerialPort:close()
 ````
 This method closes the port. There is no return value
-````
+
+````lua
 SerialPort:write(msg) -> bool 
 ````
 This method writes a string to the serial port. If the port isnt opened, it will show on Lua side. If the write operation failed, it returns false, and the error will be shown in Coppelia Log Terminal.
@@ -98,7 +99,7 @@ SerialPort:read() -> bool,string
 This method reads form the serial port. If the port isnt opened, it will show on Lua side. If the write operation failed, it returns false and an empty string, and the error will be shown in Coppelia Log Terminal.
 
 ````lua
-SerialPort:Config(baud,parity,bytesize,stopbits) -> bool
+SerialPort:config(baud,parity,bytesize,stopbits) -> bool
 ````
 
 This method configures the communication parameters of the port. Default parameters are 9600,1,7,2. If it fails, it returns false, and the error is shown on Coppelia Log Terminal.
