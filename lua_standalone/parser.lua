@@ -1,5 +1,12 @@
 Parser = {}
 
+Symbols = {
+    points = {},
+    globals = {},
+    subs = {},
+    labels = {}
+}
+
 local f = string.format
 
 function Parser:new(tokens)
@@ -60,7 +67,8 @@ function Parser:expr()
     local prec_1 = {'EQ','GT','LT'}
     local prec_2 = {'ADD','SUB'}
     local prec_3 = {'DIV','MUL'}
-    local prec_4 = {'SUB'}
+    local prec_4 = {'POW'}
+    local prec_5 = {'SUB'}
     local function atom() 
         local value = self:token()
         if self:match('NUM') or self:match('STR') then
@@ -87,11 +95,13 @@ function Parser:expr()
         end
         return lhs
     end
-    local function f_prec_4()
+    
+    local function f_prec_5()
         if self:match('SUB') then self:advance()
-            return {'NEG',f_prec_4()}
+            return {'NEG',f_prec_5()}
         else return atom() end
     end
+    local function f_prec_4() return binode(f_prec_5,prec_4) end
     local function f_prec_3() return binode(f_prec_4,prec_3) end
     local function f_prec_2() return binode(f_prec_3,prec_2) end
     local function f_prec_1() return binode(f_prec_2,prec_1) end
@@ -101,7 +111,7 @@ end
 function Parser:register()
     local function value_list()
         local list,point = {},nil
-        while not self:match('NL') and not self:match(EOF) do
+        while not (self:match('NL') or self:match(EOF) or self:match('THEN'))do
             if self:match('SEP') then self:advance()
             else point = self:expr(); push(list,point)
             end
@@ -109,8 +119,13 @@ function Parser:register()
         return list
     end
     local function isvalid(id)
-        if #id ~= 1 then return false end
-        if id:byte() < string.byte('A') and id:byte() > string.byte('Z') then return false end
+        if #id == 1 then
+            if id:byte() < string.byte('A') and id:byte() > string.byte('Z') then return false end
+        elseif #id == 2 then
+            local bytes = {string.byte(id,1,-1)}
+            if bytes[1] ~= string.byte('@') then return false end
+            if bytes[2] < string.byte('A') and bytes[2] > string.byte('Z') then return false end
+        else return false end
         return true 
     end
     local function move()
@@ -212,10 +227,17 @@ function Parser:register()
             Symbols.globals[id] = {}
         end
         self:advance()
-        if op == "SETI" then
         self:assert(self:match('EQ'),UNMATCH,{'=',self:current()}); self:advance()
         push(self.ops,{op,id,self:expr()})
-        end
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
+    end
+    local function rlocal()
+        self:advance()
+        self:assert(self:match('ID'),UNMATCH,{'Identifier',self:current()})
+        local id = self:value()
+        self:assert(isvalid(id),CUSTOM,"Expected Identifier from 'A' to 'Z'")
+        self:advance()
+        push(self.ops,{'LOCAL',id})
         self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
     end
     local function gosub()
@@ -277,6 +299,41 @@ function Parser:register()
         local arg = self:expr()
         push(self.ops,{'SEND',arg})
     end
+    local function hardhome()
+        self:advance()
+        push(self.ops,{'HARDHOME'})
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
+    end
+    local function assign()
+        self:assert(self:match('ID'),UNMATCH,{'Identifier',self:current()})
+        local id = self:value()
+        self:assert(isvalid(id),CUSTOM,"Expected Integer or float (@) Identifier from 'A' to 'Z'")
+        self:advance()
+        if not Symbols.globals[id] then Symbols.globals[id] = {} end
+        self:assert(self:match('EQ'),UNMATCH,{'=',self:current()}); self:advance()
+        push(self.ops,{'ASSIGN',id,self:expr()})
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()}) 
+    end
+    local function ifsig()
+        self:advance()
+        local condition = value_list()
+        self:assert(self:match('THEN'),UNMATCH,{'THEN',self:current()}); self:advance()
+        push(self.ops,{'IFSIG',condition})
+        self:parse('NL')
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
+    end
+    local function outsig()
+        self:advance()
+        local sig = value_list()
+        push(self.ops,{'OUTSIG',sig})
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
+    end
+    local function waitfor()
+        self:advance()
+        local conds = value_list()
+        push(self.ops,{'WAITFOR',conds})
+        self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
+    end
     local statement = Switch:new()
 
     statement:build()
@@ -286,6 +343,7 @@ function Parser:register()
         :case('VEL',vel)
         :case('GOTO',rgoto)
         :case('HOME',home)
+        :case('HARDHOME',hardhome)
         :case('CLOSE',close)
         :case('OPEN',open)
         :case('CLS',cls)
@@ -295,13 +353,17 @@ function Parser:register()
         :case('END',rend)
         :case('IF',rif)
         :case('SETI',seti)
-        :case('LOCAL',seti)
+        :case('LOCAL',rlocal)
         :case('GOSUB',gosub)
         :case('RETURN',rreturn)
         :case('FOR',rfor)
         :case('REM',rem)
         :case('INPUT',input)
         :case('SEND',send)
+        :case('OUTSIG',outsig)
+        :case('IFSIG',ifsig)
+        :case('WAITFOR',waitfor)
+        :case('ID',assign)
         :default(function(p) p:assert(false,CUSTOM,"Unknown token "..p:value()) end)
 
     return statement
