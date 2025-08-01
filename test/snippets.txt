@@ -180,3 +180,15 @@ return
 4
 rem type "sub 4"
 return
+
+--------------------------------------------
+
+@f = 4.3^2
+gosub 100
+type @f
+end
+100
+local @f
+@f = 9.0006
+type @f
+return
