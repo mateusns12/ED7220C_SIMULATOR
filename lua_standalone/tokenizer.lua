@@ -26,6 +26,7 @@ KEYW = {
 ['CLOSE']={'CLOSE'},
 ['VEL']={'VEL'},
 ['HOME']={'HOME'},
+['HARDHOME']={'HARDHOME'},
 ['SEND']={'SEND'},
 ['OFFLINE']={'OFFLINE'},
 ['ONLINE']={'ONLINE'},
@@ -63,7 +64,9 @@ function Tokenizer:tokenize()
     end
     local function getWord()
         local word = ""
-        while chars[idx]:match("%w") do word = word .. chars[idx];advance() end
+        while chars[idx]:match("%w") or chars[idx]=='.' or chars[idx]=='@' do 
+            word = word .. chars[idx];advance() 
+        end
         if KEYW[word] then return KEYW[word]
         elseif tonumber(word) then return {'NUM',tonumber(word)}
         else return {'ID',word}
@@ -96,10 +99,12 @@ function Tokenizer:tokenize()
             push(self.tokens,{'EQ','='});advance()
         elseif chars[idx] == '\n' then
             push(self.tokens,{'NL','new line'});advance()
+        elseif chars[idx] == '^' then
+            push(self.tokens,{'POW','^'});advance()
         elseif chars[idx] == '\"' then
             advance()
             push(self.tokens,getString());advance()
-        elseif chars[idx]:match("%w") then
+        elseif chars[idx]:match("%w") or chars[idx] == '@' then
             push(self.tokens,getWord());
         else
             advance()
