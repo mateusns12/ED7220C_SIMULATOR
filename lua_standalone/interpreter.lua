@@ -106,7 +106,7 @@ function Interpreter:run()
         elseif cmd[1] == 'LABEL' then
         elseif cmd[1] == 'INPUT' then
             io.write(cmd[2][2])
-            v = io.read()
+            v = tonumber(io.read())
             local var = Symbols.globals[cmd[3]]
             if not var then push(Symbols.globals[cmd[3]],{'NUM',v})
             else var[#var] = {'NUM',v}
