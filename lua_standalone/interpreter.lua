@@ -181,7 +181,7 @@ function Emitter:register()
         ret,msg = self:read()
     end
     local function move(args)
-        local point = Symbols.points[args[2]]
+        local point = args[2]
         for i=1,#self.motors do
             self:write(f("pr,%s,%d\r",self.motors[i],self.eval:eval(point[i])))
             self:wait(50)
@@ -334,9 +334,9 @@ function main()
     local parser = Parser:new(tokenizer:tokenize())
     local ops = parser:parse()
     parser:dump()
-    local serial = SerialPort:new(arg[2])
+    --local serial = SerialPort:new(arg[2])
     local emitter = Emitter:new()
-    emitter:setport(serial)
+    --emitter:setport(serial)
     local interpreter = Interpreter:new(parser.ops,emitter)
     interpreter:run()
 end
