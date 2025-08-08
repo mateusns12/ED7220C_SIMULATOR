@@ -111,11 +111,12 @@ end
 function Parser:register()
     local function value_list()
         local list,point = {},nil
-        while not (self:match('NL') or self:match(EOF) or self:match('THEN'))do
-            if self:match('SEP') then self:advance()
-            else point = self:expr(); push(list,point)
-            end
-        end
+        --while not (self:match('NL') or self:match(EOF) or self:match('THEN'))do
+        repeat
+            if self:match('SEP') then self:advance() end
+            point = self:expr()
+            if point then push(list,point) end
+        until not self:match('SEP')
         return list
     end
     local function isvalid(id)
@@ -129,7 +130,8 @@ function Parser:register()
         return true 
     end
     local function move()
-        local op = {self:current(),nil}; self:advance()
+        local op = {'MOVE',nil}; self:advance()
+        if self:match('TO') then op[1] = 'MOVETO' ;self:advance() end
         op[2] = value_list()
         push(self.ops,op)
         self:assert(self:match('NL'),UNMATCH,{'new line',self:current()})
@@ -309,9 +311,9 @@ function Parser:register()
         local id = self:value()
         self:assert(isvalid(id),CUSTOM,"Expected Integer or float (@) Identifier from 'A' to 'Z'")
         self:advance()
-        if not Symbols.globals[id] then Symbols.globals[id] = {} end
         self:assert(self:match('EQ'),UNMATCH,{'=',self:current()}); self:advance()
         push(self.ops,{'ASSIGN',id,self:expr()})
+        if not Symbols.globals[id] then Symbols.globals[id] = {} end
         self:assert(self:match('NL'),UNMATCH,{'new line',self:current()}) 
     end
     local function ifsig()
