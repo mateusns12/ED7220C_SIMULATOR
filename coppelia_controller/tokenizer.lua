@@ -3,6 +3,13 @@
 Tokenizer = {}
 
 KEYW = {
+------------BUILTIN-------------
+['ACOS']={'ACOS'},
+['ASIN']={'ASIN'},
+['ATAN']={'ATAN'},
+['COS']={'COS'},
+['SIN']={'SIN'},
+['TAN']={'TAN'},
 ------------PROGRAM-------------
 ['TO']={'TO'},
 ['GOTO']={'GOTO'},

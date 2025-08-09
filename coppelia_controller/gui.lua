@@ -13,15 +13,17 @@ tokenizer = Tokenizer:new()
 parser = Parser:new()
 emitter = Emitter:new()
 interpreter = Interpreter:new()
+Runtime.cleanup()
 
 -- @brief Controller main Thread
 main_coro = coroutine.create(function()
     sim.addLog(sim.verbosity_msgs, "Main Thread Spawned")
+    
     CB.code = ""
     parser:register()
     emitter:register()
     robot:register()
-    
+
     interpreter.robot = robot
     interpreter.emitter = emitter
     
@@ -29,12 +31,17 @@ main_coro = coroutine.create(function()
     Runtime.resume(robot_coro)
     Runtime.resume(emit_coro)
     CB.control()
+    coroutine.yield()
     while true do
         if Runtime.enabled then
+            local t1 = sim.getSystemTime()
             interpreter:run(CB.ops)
             Runtime.enabled = false
+            local t2 = sim.getSystemTime()
+            print("Time elapse: ",t2-t1)
         end
         coroutine.yield()
+        --collectgarbage("collect")
     end
 end)
 
@@ -133,13 +140,15 @@ end
 -- @brief Pauses Interpreter execution. It does not stop running motion operations,
 --        but justs does not advance to the next instruction.
 function CB.Pause(ui,id)
+    --sim.addLog(420,"Paused")
     Runtime.paused = true
 end
 
 -- @brief Restarts the Interpreter. Restarts the scene for virtual robot, and sends
 --        command HOME to the real robot (position 0,0,0,0,0).
 function CB.Restart(ui,id)
-
+    Runtime.cleanup()
+    robot:restart()
 end
 
 -- @brief Stops Interpreter execution. Stops all running motion operations for virtual
@@ -168,6 +177,16 @@ function CB.EnableSerialDebug(ui,id)
     end
 end
 
+function CB.EnableFastMode(ui,id)
+    local state = simUI.getCheckboxValue(ui,id)
+    if state == 2 then
+        Runtime.fastMode = true
+        simUI.msgBox(simUI.msgbox_type.warning,simUI.msgbox_buttons.ok,"Info","Os comandos nao respondem em fast mode! Nao e possivel fechar, reiniciar, pausar ou parar a execucao")
+    else
+        Runtime.fastMode = false
+    end
+end
+
 -- @brief Creates/Updates the Robot Status Tree
 function CB.CreateStatusTree(ui,id)
     for s=1,#CB.status do
@@ -181,6 +200,10 @@ end
 -- @brief Clear the status tree, and gets status words from the real robot via serial.
 --        This function does not work if a simulation is running.
 function CB.UpdateStatusTree(ui,id)
+    if Runtime.enabled then 
+        simUI.msgBox(simUI.msgbox_type.warning,simUI.msgbox_buttons.ok,"Atencao","Nao e possivel atualizar status com uma rotina em andamento!")
+        return
+    end
     simUI.clearTree(CB.ui,501)
     --robot:status(CB.status)
     CB.CreateStatusTree(CB.ui,501)
@@ -221,13 +244,14 @@ function CB.control()
         <tabs id="300">
             <tab id="301" layout="vbox" title="Comandos"> 
                 <group id="905" layout="hbox" flat="true" content-margins="0,0,0,0">
-                    <button id="201" text="Executar" on-click="CB.Execute" icon="default://SP_MediaPlay"/>
-                    <button id="202" text="Pausar" on-click="CB.Pause" icon="default://SP_MediaPause"/>
-                    <button id="203" text="Reiniciar" icon="default://SP_BrowserReload"/>
-                    <button id="204" text="Parar" icon="default://SP_MediaStop"/>
+                    <button id="201" text="Executar"  on-click="CB.Execute" icon="default://SP_MediaPlay"/>
+                    <button id="202" text="Pausar"    on-click="CB.Pause"   icon="default://SP_MediaPause"/>
+                    <button id="203" text="Reiniciar" on-click="CB.Restart" icon="default://SP_BrowserReload"/>
+                    <button id="204" text="Parar"     on-click="CB.Stop"    icon="default://SP_MediaStop"/>
                 </group>
                 <group id="906" layout="hbox" flat="true" content-margins="0,0,0,0">
                     <label id="801" text="Programa:"/>
+                    <checkbox id="420" text="Habilitar Fast Mode" on-change="CB.EnableFastMode"/>
                     <button id="205" text="Carregar do arquivo"
                         icon="default://SP_DialogOpenButton"
                         on-click="CB.GetFileContent"/>
@@ -285,6 +309,8 @@ function CB.control()
             <tab id="304" title="Teste">
                 <tabs id="306">
                     <tab id="307" title="Robo Simulacao">
+                        <group>
+                        </group>
                     </tab>
                     <tab id="308" title="Robo Real">
                     </tab>
@@ -310,7 +336,7 @@ function CB.control()
                 <label id="803" text="OFFLINE"/>
                 <button text="Conectar" icon="default://SP_CommandLink"/>
             </group>
-            <label id="804" text="Inputs"/>
+            <label id="804" text="Entradas"/>
             <group id="915" layout="grid" content-margins="10,10,10,10">
                 <checkbox id="402" text="Input 1"/>
                 <checkbox id="403" text="Input 2"/>
@@ -325,7 +351,7 @@ function CB.control()
                 <checkbox id="409" text="Input 8"/>
             </group>
             <button id="210" text="Remover esperas" on-click="CB.CancelPending"/>
-            <label id="805" text="Outputs" />
+            <label id="805" text="Saidas" />
             <group id="916" layout="grid" content-margins="10,10,10,10">
                 <checkbox id="410" text="Output 1"/>
                 <checkbox id="411" text="Output 2"/>
@@ -374,7 +400,7 @@ function CB.control()
         }
         QPushButton{
             font-family:']]..CB.font..[[';
-            font-size:]]..CB.font_sz_std..[[;
+            font-size:]]..CB.font_sz_title..[[;
             width: 150px;
             min-height: 30px;
             max-height: 60px;
@@ -445,6 +471,20 @@ function CB.control()
     ]]
     simUI.setStyleSheet(CB.ui,801,TT_Style)
     simUI.setStyleSheet(CB.ui,802,TT_Style)
+    
+    local BX_Style = [[
+        QComboBox{
+        font-family:']]..CB.font..[[';
+            font-size:]]..CB.font_sz_std..[[
+        }
+        QPushButton{
+            font-family:']]..CB.font..[[';
+            font-size:]]..CB.font_sz_std..[[;
+            min-height:22px
+        }
+    ]]
+    
+    simUI.setStyleSheet(CB.ui,909,TT_Style..BX_Style)
     
     CB.scenePath = (sim.getProperty(sim.handle_scene,"scenePath")):match("(.*[/\\\\])")
     
